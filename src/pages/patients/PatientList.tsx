@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPatients } from '../../services/patientService'
 import { TextField, Table, TableHead, TableRow, TableCell, TableBody, Pagination, Stack, Typography, Button, CircularProgress, Box } from '@mui/material'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { Patient } from '../../types/models'
 
 export default function PatientList() {
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const { data, isLoading } = useQuery({
@@ -37,8 +39,13 @@ export default function PatientList() {
           ) : items.length === 0 ? (
             <TableRow><TableCell colSpan={4}>No patients</TableCell></TableRow>
           ) : (
-            items.map((p) => (
-              <TableRow key={p.id} hover component={Link} to={`/patients/${p.id}`} style={{ textDecoration: 'none' }}>
+            items.map((p: Patient) => (
+              <TableRow
+                key={p.id}
+                hover
+                onClick={() => navigate(`/patients/${p.id}`)}
+                sx={{ cursor: 'pointer' }}
+              >
                 <TableCell>{p.user.firstName} {p.user.lastName}</TableCell>
                 <TableCell>{p.user.email}</TableCell>
                 <TableCell>{p.dateOfBirth ?? '-'}</TableCell>

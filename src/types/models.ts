@@ -1,4 +1,4 @@
-export interface Permission { id: string; name: string; description?: string }
+export interface Permission { id: string; name: string; description?: string; category: string }
 export interface Role { id: string; name: string; permissions: Permission[] }
 export interface User {
   id: string
@@ -6,6 +6,7 @@ export interface User {
   firstName: string
   lastName: string
   role: Role
+  disabledPermissions?: Permission[]
   isActive: boolean
 }
 
@@ -120,6 +121,36 @@ export interface Document {
   documentType: 'prescription' | 'lab_result' | 'consultation' | 'general' | 'imaging' | 'vaccine'
   description?: string
   uploadedAt?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface Pharmacy {
+  id: string
+  name: string
+  licenseNumber: string
+  registrationNumber?: string
+  address: {
+    street: string
+    city: string
+    state?: string
+    postalCode: string
+    country: string
+    coordinates?: { latitude: number; longitude: number }
+  }
+  contacts: { type: 'phone' | 'mobile' | 'fax' | 'email' | 'emergency'; value: string; isPrimary: boolean }[]
+  openingHours: { day: string; isOpen: boolean; openTime?: string; closeTime?: string; breakStart?: string; breakEnd?: string }[]
+  pharmacyManager: { name: string; licenseNumber: string; email?: string; phone?: string }
+  services: string[]
+  type: 'community' | 'hospital' | 'clinic' | 'online' | 'specialty'
+  isActive: boolean
+  partnershipStatus: 'active' | 'inactive' | 'suspended' | 'pending'
+  notes?: string
+  specializations?: string[]
+  rating?: { average: number; count: number }
+  canDispenseControlledSubstances: boolean
+  acceptsInsurance: boolean
+  insuranceProviders?: string[]
   createdAt?: string
   updatedAt?: string
 }

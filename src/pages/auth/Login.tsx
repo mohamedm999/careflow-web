@@ -18,12 +18,34 @@ export default function Login() {
   const { isLoading, error } = useAppSelector(s => s.auth)
 
   const onSubmit = async (data: FormData) => {
-    const res = await dispatch(login(data))
-    if (login.fulfilled.match(res)) {
-      toast.success('Login successful!')
-      nav('/dashboard')
-    } else if (login.rejected.match(res)) {
-      toast.error(res.error.message || 'Login failed')
+    console.log('Login submitted', data)
+    try {
+      const res = await dispatch(login(data))
+      console.log('Login response', res)
+
+      if (login.fulfilled.match(res)) {
+        console.log('Login fulfilled', res.payload)
+        toast.success(`Welcome back, ${res.payload.user.firstName}!`)
+        // Handle role object (new backend) or string (legacy)
+        // @ts-ignore - Handling potential legacy string type for role
+        const roleName = res.payload.user.role.name || res.payload.user.role
+        console.log('Navigating to', roleName)
+        nav(`/${roleName}/dashboard`)
+      } else if (login.rejected.match(res)) {
+        console.error('Login rejected', res.error)
+        // Error handling is now enhanced by the interceptor, but we can still show specific form errors here if needed
+        // The global interceptor shows toasts for 429, 500, etc.
+        // For 401 on login, we might want to show a form error instead of a toast
+        const errorMsg = res.error.message || 'Login failed'
+        if (errorMsg.includes('429')) {
+          // Already handled by toast
+        } else if (errorMsg.includes('401') || errorMsg.includes('400')) {
+          // Invalid credentials
+        }
+        // We rely on the slice error state which is updated by the rejected action
+      }
+    } catch (err) {
+      console.error('Login error caught in component', err)
     }
   }
 

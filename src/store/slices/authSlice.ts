@@ -1,32 +1,42 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import { http } from '../../services/api'
 import { setAccessToken } from '../../services/token'
-import type { ApiResponse } from '../../types/api'
+import type { ApiResponse, Permission } from '../../types/api'
 
-interface Role { id: string; name: string; permissions: { id: string; name: string }[] }
-interface User { id: string; email: string; firstName: string; lastName: string; role: Role; isActive: boolean }
+import type { User } from '../../types/models'
 interface AuthState {
   user: User | null
   accessToken: string | null
+  permissions: Permission[]
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
 }
-const initialState: AuthState = { user: null, accessToken: null, isAuthenticated: false, isLoading: false, error: null }
+const initialState: AuthState = { user: null, accessToken: null, permissions: [], isAuthenticated: false, isLoading: false, error: null }
 
 export const login = createAsyncThunk('auth/login', async (payload: { email: string; password: string }) => {
-  const res = await http.post<ApiResponse<{ user: User; accessToken: string }>>('/auth/login', payload)
-  return res.data.data!
+  const res = await http.post<any>('/auth/login', payload)
+  // Handle both enveloped (res.data.data) and flat (res.data) response structures
+  const data = res.data.data || res.data
+  return data
 })
 
 export const register = createAsyncThunk('auth/register', async (payload: { email: string; password: string; firstName: string; lastName: string }) => {
-  const res = await http.post<ApiResponse<{ user: User; accessToken: string }>>('/auth/register', payload)
-  return res.data.data!
+  const res = await http.post<any>('/auth/register', payload)
+  const data = res.data.data || res.data
+  return data
+})
+
+export const registerStaff = createAsyncThunk('auth/registerStaff', async (payload: { email: string; password: string; firstName: string; lastName: string; role: string }) => {
+  const res = await http.post<any>('/auth/register-staff', payload)
+  const data = res.data.data || res.data
+  return data
 })
 
 export const fetchMe = createAsyncThunk('auth/me', async () => {
-  const res = await http.get<ApiResponse<User>>('/auth/me')
-  return res.data.data!
+  const res = await http.get<any>('/auth/me')
+  const data = res.data.data || res.data
+  return data
 })
 
 export const logout = createAsyncThunk('auth/logout', async () => {
@@ -44,6 +54,7 @@ const slice = createSlice({
     forceLogout: (state) => {
       state.user = null
       state.accessToken = null
+      state.permissions = []
       state.isAuthenticated = false
       setAccessToken(null)
     }
@@ -54,6 +65,7 @@ const slice = createSlice({
        s.isLoading = false
        s.user = a.payload.user
        s.accessToken = a.payload.accessToken
+       s.permissions = a.payload.permissions || []
        s.isAuthenticated = true
        setAccessToken(a.payload.accessToken)
      })
@@ -61,13 +73,23 @@ const slice = createSlice({
      .addCase(register.fulfilled, (s, a) => {
        s.user = a.payload.user
        s.accessToken = a.payload.accessToken
+       s.permissions = a.payload.permissions || []
        s.isAuthenticated = true
        setAccessToken(a.payload.accessToken)
      })
-     .addCase(fetchMe.fulfilled, (s, a) => { s.user = a.payload; s.isAuthenticated = true })
+     .addCase(registerStaff.fulfilled, (s, a) => {
+       // Staff registration doesn't log in the created user
+       // Just show success - the created user can log in separately
+     })
+     .addCase(fetchMe.fulfilled, (s, a) => { 
+       s.user = a.payload.user
+       s.permissions = a.payload.permissions || []
+       s.isAuthenticated = true 
+     })
      .addCase(logout.fulfilled, (s) => {
        s.user = null
        s.accessToken = null
+       s.permissions = []
        s.isAuthenticated = false
        setAccessToken(null)
      })

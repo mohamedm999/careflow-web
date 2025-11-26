@@ -49,12 +49,19 @@ export default function AppointmentList() {
           ) : items.length === 0 ? (
             <TableRow><TableCell colSpan={6}>No appointments</TableCell></TableRow>
           ) : (
-            items.map((a) => (
-              <TableRow key={a.id} hover component={Link} to={`/appointments/${a.id}`} style={{ textDecoration: 'none' }}>
-                <TableCell>{a.patientId}</TableCell>
-                <TableCell>{a.doctorId}</TableCell>
-                <TableCell>{a.appointmentDate}</TableCell>
-                <TableCell>{a.appointmentTime}</TableCell>
+            items.map((a: any) => (
+              <TableRow 
+                key={a.id} 
+                hover
+              >
+                <TableCell>
+                  {a.patient ? `${a.patient.firstName} ${a.patient.lastName}` : 'Unknown Patient'}
+                </TableCell>
+                <TableCell>
+                  {a.doctor ? `Dr. ${a.doctor.firstName} ${a.doctor.lastName}` : 'Unknown Doctor'}
+                </TableCell>
+                <TableCell>{new Date(a.dateTime).toLocaleDateString()}</TableCell>
+                <TableCell>{new Date(a.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</TableCell>
                 <TableCell><Chip label={a.type} /></TableCell>
                 <TableCell>
                   <Chip label={a.status} color={a.status === 'scheduled' ? 'primary' : a.status === 'completed' ? 'success' : 'default'} />

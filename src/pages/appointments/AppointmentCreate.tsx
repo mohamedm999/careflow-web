@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { TextField, Button, Stack, MenuItem, Typography, Paper, Container, Box, Alert } from '@mui/material'
@@ -9,6 +9,7 @@ import { getPatients } from '../../services/patientService'
 import { getDoctors } from '../../services/doctorService'
 import { useState } from 'react'
 import { getErrorMessage } from '../../utils/errorHandler'
+import { Patient, Doctor } from '../../types/models'
 
 const schema = z.object({
   patientId: z.string().min(1, 'Patient is required'),
@@ -16,15 +17,27 @@ const schema = z.object({
   appointmentDate: z.string().min(1, 'Date is required'),
   appointmentTime: z.string().min(1, 'Time is required'),
   duration: z.coerce.number().min(1, 'Duration must be at least 1 minute'),
-  type: z.enum(['consultation','checkup','procedure','follow-up']),
-  reasonForVisit: z.string().optional(),
+  type: z.enum(['consultation', 'checkup', 'procedure', 'follow-up']),
+  reasonForVisit: z.string().min(1, 'Reason for visit is required'),
   notes: z.string().optional()
 })
 
 type FormData = z.infer<typeof schema>
 
 export default function AppointmentCreate() {
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { type: 'consultation' } })
+  const { register, handleSubmit, control, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      type: 'consultation',
+      patientId: '',
+      doctorId: '',
+      appointmentDate: '',
+      appointmentTime: '',
+      duration: 30,
+      reasonForVisit: '',
+      notes: ''
+    }
+  })
   const navigate = useNavigate()
   const [apiError, setApiError] = useState<{ message: string; details?: string } | null>(null)
   const [loading, setLoading] = useState(false)
@@ -65,37 +78,54 @@ export default function AppointmentCreate() {
 
           <form onSubmit={handleSubmit(onSubmit)}>
             <Stack gap={2}>
-              <TextField
-                select
-                label="Patient"
-                {...register('patientId')}
-                error={!!errors.patientId}
-                helperText={errors.patientId?.message}
-                fullWidth
-              >
-                <MenuItem value="">Select Patient</MenuItem>
-                {(patientsData?.items ?? []).map(p => (
-                  <MenuItem key={p.id} value={p.id}>
-                    {p.user.firstName} {p.user.lastName} ({p.user.email})
-                  </MenuItem>
-                ))}
-              </TextField>
+              <Controller
+                name="patientId"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    select
+                    label="Patient"
+                    {...field}
+                    value={field.value ?? ''}
+                    error={!!errors.patientId}
+                    helperText={errors.patientId?.message}
+                    fullWidth
+                  >
+                    <MenuItem value="">Select Patient</MenuItem>
+                    {(patientsData?.items ?? [])
+                      .filter((p: Patient) => p && p.user)
+                      .map((p: Patient) => (
+                        <MenuItem key={p.id} value={p.user.id}>
+                          {p.user.firstName} {p.user.lastName} ({p.user.email})
+                        </MenuItem>
+                      ))}
+                  </TextField>
+                )}
+              />
 
-              <TextField
-                select
-                label="Doctor"
-                {...register('doctorId')}
-                error={!!errors.doctorId}
-                helperText={errors.doctorId?.message}
-                fullWidth
-              >
-                <MenuItem value="">Select Doctor</MenuItem>
-                {(doctorsData?.items ?? []).map(d => (
-                  <MenuItem key={d.id} value={d.id}>
-                    {d.user.firstName} {d.user.lastName} {d.specialization ? `(${d.specialization})` : ''} ({d.user.email})
-                  </MenuItem>
-                ))}
-              </TextField>
+
+              <Controller
+                name="doctorId"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    select
+                    label="Doctor"
+                    {...field}
+                    value={field.value ?? ''}
+                    error={!!errors.doctorId}
+                    helperText={errors.doctorId?.message}
+                    fullWidth
+                  >
+                    <MenuItem value="">Select Doctor</MenuItem>
+                    {(doctorsData?.items ?? []).map((d: Doctor) => (
+                      <MenuItem key={d.id} value={d.id}>
+                        {d.user.firstName} {d.user.lastName} {d.specialization ? `(${d.specialization})` : ''} ({d.user.email})
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
+              />
 
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                 <TextField
@@ -129,20 +159,26 @@ export default function AppointmentCreate() {
                 fullWidth
               />
 
-              <TextField
-                select
-                label="Appointment Type"
-                defaultValue="consultation"
-                {...register('type')}
-                error={!!errors.type}
-                helperText={errors.type?.message}
-                fullWidth
-              >
-                <MenuItem value="consultation">Consultation</MenuItem>
-                <MenuItem value="checkup">Checkup</MenuItem>
-                <MenuItem value="procedure">Procedure</MenuItem>
-                <MenuItem value="follow-up">Follow-up</MenuItem>
-              </TextField>
+              <Controller
+                name="type"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    select
+                    label="Appointment Type"
+                    {...field}
+                    value={field.value ?? 'consultation'}
+                    error={!!errors.type}
+                    helperText={errors.type?.message}
+                    fullWidth
+                  >
+                    <MenuItem value="consultation">Consultation</MenuItem>
+                    <MenuItem value="checkup">Checkup</MenuItem>
+                    <MenuItem value="procedure">Procedure</MenuItem>
+                    <MenuItem value="follow-up">Follow-up</MenuItem>
+                  </TextField>
+                )}
+              />
 
               <TextField
                 label="Reason for Visit"

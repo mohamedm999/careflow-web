@@ -8,22 +8,39 @@ export const getAppointments = async (params: AppointmentListParams = {}) => {
   const res = await http.get<ApiResponse<{ items: Appointment[] }>>('/appointments', { params })
   const data = res.data.data
   const pagination = res.data.pagination
-  return { items: data?.items ?? [], pagination }
+  
+  const items = (data?.items ?? []).map((item: any) => ({
+    ...item,
+    id: item._id || item.id
+  }))
+
+  return { items, pagination }
 }
 
 export const getAppointmentById = async (id: string) => {
   const res = await http.get<ApiResponse<Appointment>>(`/appointments/${id}`)
-  return res.data.data!
+  const data = res.data.data!
+  return { ...data, id: (data as any)._id || data.id }
 }
 
-export const createAppointment = async (payload: Partial<Appointment> & { patientId: string; doctorId: string }) => {
-  const res = await http.post<ApiResponse<Appointment>>('/appointments', payload)
-  return res.data.data!
+export const createAppointment = async (payload: any) => {
+  const { appointmentDate, appointmentTime, reasonForVisit, ...rest } = payload
+  // Combine date and time into ISO string
+  const dateTime = new Date(`${appointmentDate}T${appointmentTime}`).toISOString()
+  
+  const res = await http.post<ApiResponse<Appointment>>('/appointments', {
+    ...rest,
+    dateTime,
+    reason: reasonForVisit
+  })
+  const data = res.data.data!
+  return { ...data, id: (data as any)._id || data.id }
 }
 
 export const updateAppointment = async (id: string, payload: Partial<Appointment>) => {
   const res = await http.put<ApiResponse<Appointment>>(`/appointments/${id}`, payload)
-  return res.data.data!
+  const data = res.data.data!
+  return { ...data, id: (data as any)._id || data.id }
 }
 
 export const cancelAppointment = async (id: string) => {

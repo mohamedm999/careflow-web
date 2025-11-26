@@ -1,3 +1,11 @@
-let accessToken: string | null = null
-export const setAccessToken = (token: string | null) => { accessToken = token }
-export const getAccessToken = () => accessToken
+const TOKEN_KEY = 'accessToken'
+
+export const setAccessToken = (token: string | null) => {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token)
+  } else {
+    localStorage.removeItem(TOKEN_KEY)
+  }
+}
+
+export const getAccessToken = () => localStorage.getItem(TOKEN_KEY)
