@@ -3,12 +3,17 @@ import { useQuery } from '@tanstack/react-query'
 import { getAppointments } from '../../services/appointmentService'
 import { TextField, Table, TableHead, TableRow, TableCell, TableBody, Pagination, Stack, Typography, Button, Select, MenuItem, Chip, CircularProgress, Box } from '@mui/material'
 import { Link } from 'react-router-dom'
+import { useAppSelector } from '../../store'
+import { hasAnyPermission } from '../../utils/permissions'
 
 export default function AppointmentList() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [type, setType] = useState('')
+  const { permissions } = useAppSelector(s => s.auth)
+  const canCreate = hasAnyPermission(permissions, ['schedule_any_doctor', 'schedule_own_appointments'])
+  
   const { data, isLoading } = useQuery({
     queryKey: ['appointments', page, search, status, type],
     queryFn: () => getAppointments({ page, limit: 10 })
@@ -30,7 +35,9 @@ export default function AppointmentList() {
           <MenuItem value="">All Types</MenuItem>
           {['consultation','checkup','procedure','follow-up'].map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
         </Select>
-        <Button variant="contained" component={Link} to="/appointments/new">New Appointment</Button>
+        {canCreate && (
+          <Button variant="contained" component={Link} to="/appointments/new">New Appointment</Button>
+        )}
       </Stack>
       <Table>
         <TableHead>

@@ -77,13 +77,14 @@ export default function Dashboard() {
       color: '#d32f2f',
       show: hasPermission(permissions, 'create_users')
     },
-    {
-      title: 'Settings',
-      link: '/admin/settings',
-      icon: '⚙️',
-      color: '#616161',
-      show: hasPermission(permissions, 'access_system_settings')
-    }
+    // Settings hidden - backend not implemented yet
+    // {
+    //   title: 'Settings',
+    //   link: '/admin/settings',
+    //   icon: '⚙️',
+    //   color: '#616161',
+    //   show: hasPermission(permissions, 'access_system_settings')
+    // }
   ]
 
   const visibleModules = allModules.filter(m => m.show)

@@ -30,7 +30,8 @@ const schema = z.object({
         licenseNumber: z.string().min(1, 'Manager license is required'),
         email: z.string().email().optional().or(z.literal('')),
         phone: z.string().optional()
-    })
+    }),
+    contactPhone: z.string().min(1, 'Contact phone is required')
 })
 
 type FormData = z.infer<typeof schema>
@@ -48,13 +49,14 @@ export default function PharmacyCreate() {
 
     const onSubmit = async (data: FormData) => {
         try {
+            const { contactPhone, ...rest } = data
             await createPharmacy({
-                ...data,
+                ...rest,
                 isActive: true,
                 partnershipStatus: 'active',
-                contacts: [], // Required by type but not in form for simplicity
-                openingHours: [], // Required by type but not in form for simplicity
-                services: [] // Required by type but not in form for simplicity
+                contacts: [{ type: 'phone', value: contactPhone, isPrimary: true }],
+                openingHours: [],
+                services: []
             })
             toast.success('Pharmacy created successfully')
             nav('/pharmacies')
@@ -103,6 +105,16 @@ export default function PharmacyCreate() {
                                 {...register('licenseNumber')}
                                 error={!!errors.licenseNumber}
                                 helperText={errors.licenseNumber?.message}
+                            />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <TextField
+                                fullWidth
+                                label="Contact Phone"
+                                {...register('contactPhone')}
+                                error={!!errors.contactPhone}
+                                helperText={errors.contactPhone?.message}
+                                placeholder="+212 5XX-XXXXXX"
                             />
                         </Grid>
 

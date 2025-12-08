@@ -5,17 +5,16 @@ import type { Doctor } from '../types/models'
 export interface DoctorListParams { page?: number; limit?: number; search?: string }
 
 export const getDoctors = async (params: DoctorListParams = {}) => {
-  const res = await http.get<ApiResponse<any>>('/users', { 
-    params: { ...params, role: 'doctor' } 
-  })
+  // Use the public /users/doctors endpoint (any authenticated user can access)
+  const res = await http.get<ApiResponse<any>>('/users/doctors', { params })
   // Backend uses mongoose-paginate-v2 which returns { docs, totalDocs, page, totalPages, ... }
   const paginatedData = res.data.data
   const users = paginatedData?.docs || []
   const doctors = users.map((user: any) => ({
     id: user._id,
     user: user,
-    specialization: 'General', // Default as it's not in user model
-    licenseNumber: 'N/A',
+    specialization: user.specialization || 'General',
+    licenseNumber: user.licenseNumber || 'N/A',
     yearsOfExperience: 0
   }))
   return { 

@@ -1,7 +1,7 @@
 import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { TextField, Button, Stack, MenuItem, Typography, Paper, Container, Box, Alert } from '@mui/material'
+import { TextField, Button, Stack, MenuItem, Typography, Paper, Container, Box, Alert, CircularProgress } from '@mui/material'
 import { createAppointment } from '../../services/appointmentService'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -10,9 +10,11 @@ import { getDoctors } from '../../services/doctorService'
 import { useState } from 'react'
 import { getErrorMessage } from '../../utils/errorHandler'
 import { Patient, Doctor } from '../../types/models'
+import { useAppSelector } from '../../store'
+import { hasPermission } from '../../utils/permissions'
 
 const schema = z.object({
-  patientId: z.string().min(1, 'Patient is required'),
+  patientId: z.string().optional(), // Optional for patients (auto-filled by backend)
   doctorId: z.string().min(1, 'Doctor is required'),
   appointmentDate: z.string().min(1, 'Date is required'),
   appointmentTime: z.string().min(1, 'Time is required'),
@@ -25,6 +27,11 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function AppointmentCreate() {
+  const navigate = useNavigate()
+  const { user, permissions } = useAppSelector(s => s.auth)
+  const isPatient = user?.role?.name === 'patient'
+  const canScheduleAnyDoctor = hasPermission(permissions, 'schedule_any_doctor')
+  
   const { register, handleSubmit, control, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -38,18 +45,35 @@ export default function AppointmentCreate() {
       notes: ''
     }
   })
-  const navigate = useNavigate()
+  
   const [apiError, setApiError] = useState<{ message: string; details?: string } | null>(null)
   const [loading, setLoading] = useState(false)
-  const { data: patientsData } = useQuery({ queryKey: ['patients', 1], queryFn: () => getPatients({ page: 1, limit: 100 }) })
-  const { data: doctorsData } = useQuery({ queryKey: ['doctors', 1], queryFn: () => getDoctors({ page: 1, limit: 100 }) })
+  
+  // Only fetch patients if user can schedule for any doctor (staff)
+  const { data: patientsData, isLoading: loadingPatients } = useQuery({ 
+    queryKey: ['patients', 1], 
+    queryFn: () => getPatients({ page: 1, limit: 100 }),
+    enabled: canScheduleAnyDoctor // Only fetch for staff
+  })
+  
+  // Always fetch doctors for the dropdown
+  const { data: doctorsData, isLoading: loadingDoctors } = useQuery({ 
+    queryKey: ['doctors', 1], 
+    queryFn: () => getDoctors({ page: 1, limit: 100 }) 
+  })
 
   const onSubmit = async (form: FormData) => {
     try {
       setApiError(null)
       setLoading(true)
-      const created = await createAppointment(form)
-      navigate(`/appointments/${created.id}`)
+      
+      // For patients, don't send patientId - backend will auto-assign
+      const payload = isPatient 
+        ? { ...form, patientId: undefined }
+        : form
+        
+      await createAppointment(payload)
+      navigate('/appointments')
     } catch (err) {
       const error = getErrorMessage(err)
       setApiError({
@@ -65,7 +89,15 @@ export default function AppointmentCreate() {
     <Container maxWidth="sm" sx={{ py: 4 }}>
       <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
         <Stack gap={3}>
-          <Typography variant="h5" sx={{ fontWeight: 'bold' }}>Create Appointment</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+            {isPatient ? 'Book an Appointment' : 'Create Appointment'}
+          </Typography>
+          
+          {isPatient && (
+            <Alert severity="info">
+              You are booking an appointment for yourself ({user?.firstName} {user?.lastName})
+            </Alert>
+          )}
 
           {apiError && (
             <Alert severity="error">
@@ -78,31 +110,41 @@ export default function AppointmentCreate() {
 
           <form onSubmit={handleSubmit(onSubmit)}>
             <Stack gap={2}>
-              <Controller
-                name="patientId"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    select
-                    label="Patient"
-                    {...field}
-                    value={field.value ?? ''}
-                    error={!!errors.patientId}
-                    helperText={errors.patientId?.message}
-                    fullWidth
-                  >
-                    <MenuItem value="">Select Patient</MenuItem>
-                    {(patientsData?.items ?? [])
-                      .filter((p: Patient) => p && p.user)
-                      .map((p: Patient) => (
-                        <MenuItem key={p.id} value={p.user.id}>
-                          {p.user.firstName} {p.user.lastName} ({p.user.email})
-                        </MenuItem>
-                      ))}
-                  </TextField>
-                )}
-              />
-
+              {/* Only show patient selector for staff */}
+              {canScheduleAnyDoctor && (
+                <Controller
+                  name="patientId"
+                  control={control}
+                  rules={{ required: 'Patient is required' }}
+                  render={({ field }) => (
+                    <TextField
+                      select
+                      label="Patient *"
+                      {...field}
+                      value={field.value ?? ''}
+                      error={!!errors.patientId}
+                      helperText={errors.patientId?.message}
+                      fullWidth
+                      disabled={loadingPatients}
+                    >
+                      {loadingPatients ? (
+                        <MenuItem disabled><CircularProgress size={20} /> Loading...</MenuItem>
+                      ) : (
+                        <>
+                          <MenuItem value="">Select Patient</MenuItem>
+                          {(patientsData?.items ?? [])
+                            .filter((p: Patient) => p && p.user)
+                            .map((p: Patient) => (
+                              <MenuItem key={p.id} value={p.id}>
+                                {p.user.firstName} {p.user.lastName} ({p.user.email})
+                              </MenuItem>
+                            ))}
+                        </>
+                      )}
+                    </TextField>
+                  )}
+                />
+              )}
 
               <Controller
                 name="doctorId"
@@ -110,36 +152,44 @@ export default function AppointmentCreate() {
                 render={({ field }) => (
                   <TextField
                     select
-                    label="Doctor"
+                    label="Doctor *"
                     {...field}
                     value={field.value ?? ''}
                     error={!!errors.doctorId}
                     helperText={errors.doctorId?.message}
                     fullWidth
+                    disabled={loadingDoctors}
                   >
-                    <MenuItem value="">Select Doctor</MenuItem>
-                    {(doctorsData?.items ?? []).map((d: Doctor) => (
-                      <MenuItem key={d.id} value={d.id}>
-                        {d.user.firstName} {d.user.lastName} {d.specialization ? `(${d.specialization})` : ''} ({d.user.email})
-                      </MenuItem>
-                    ))}
+                    {loadingDoctors ? (
+                      <MenuItem disabled><CircularProgress size={20} /> Loading...</MenuItem>
+                    ) : (
+                      <>
+                        <MenuItem value="">Select Doctor</MenuItem>
+                        {(doctorsData?.items ?? []).map((d: Doctor) => (
+                          <MenuItem key={d.id} value={d.id}>
+                            Dr. {d.user.firstName} {d.user.lastName} {d.specialization ? `(${d.specialization})` : ''}
+                          </MenuItem>
+                        ))}
+                      </>
+                    )}
                   </TextField>
                 )}
               />
 
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                 <TextField
-                  label="Date"
+                  label="Date *"
                   type="date"
                   InputLabelProps={{ shrink: true }}
                   {...register('appointmentDate')}
                   error={!!errors.appointmentDate}
                   helperText={errors.appointmentDate?.message}
                   fullWidth
+                  inputProps={{ min: new Date().toISOString().split('T')[0] }}
                 />
 
                 <TextField
-                  label="Time"
+                  label="Time *"
                   type="time"
                   InputLabelProps={{ shrink: true }}
                   {...register('appointmentTime')}
@@ -152,10 +202,10 @@ export default function AppointmentCreate() {
               <TextField
                 label="Duration (minutes)"
                 type="number"
-                inputProps={{ min: 1 }}
+                inputProps={{ min: 15, max: 180, step: 15 }}
                 {...register('duration')}
                 error={!!errors.duration}
-                helperText={errors.duration?.message}
+                helperText={errors.duration?.message || 'Typical: 15-60 minutes'}
                 fullWidth
               />
 
@@ -181,25 +231,29 @@ export default function AppointmentCreate() {
               />
 
               <TextField
-                label="Reason for Visit"
+                label="Reason for Visit *"
                 {...register('reasonForVisit')}
+                error={!!errors.reasonForVisit}
+                helperText={errors.reasonForVisit?.message}
                 multiline
                 rows={2}
                 fullWidth
+                placeholder="Briefly describe why you need this appointment"
               />
 
               <TextField
-                label="Notes"
+                label="Additional Notes"
                 {...register('notes')}
                 multiline
                 rows={2}
                 fullWidth
+                placeholder="Any additional information for the doctor"
               />
 
               <Stack direction="row" gap={1} sx={{ mt: 2 }}>
                 <Button variant="outlined" onClick={() => navigate(-1)} fullWidth>Cancel</Button>
                 <Button type="submit" variant="contained" fullWidth disabled={loading}>
-                  {loading ? 'Creating...' : 'Create Appointment'}
+                  {loading ? <CircularProgress size={24} /> : (isPatient ? 'Book Appointment' : 'Create Appointment')}
                 </Button>
               </Stack>
             </Stack>

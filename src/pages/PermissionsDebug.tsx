@@ -61,7 +61,7 @@ export default function PermissionsDebug() {
                         Check Specific Permissions:
                     </Typography>
                     <Box display="flex" flexWrap="wrap" gap={1}>
-                        {['create_users', 'access_system_settings', 'view_pharmacies', 'view_all_patients'].map((permName) => {
+                        {['create_consultations', 'view_all_consultations', 'create_prescriptions', 'view_all_patients', 'create_lab_orders', 'upload_documents'].map((permName) => {
                             const has = permissions.some(p => p.name === permName)
                             return (
                                 <Chip

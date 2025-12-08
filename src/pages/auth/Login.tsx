@@ -26,11 +26,8 @@ export default function Login() {
       if (login.fulfilled.match(res)) {
         console.log('Login fulfilled', res.payload)
         toast.success(`Welcome back, ${res.payload.user.firstName}!`)
-        // Handle role object (new backend) or string (legacy)
-        // @ts-ignore - Handling potential legacy string type for role
-        const roleName = res.payload.user.role.name || res.payload.user.role
-        console.log('Navigating to', roleName)
-        nav(`/${roleName}/dashboard`)
+        // Navigate to dashboard - the role-specific route is optional
+        nav('/dashboard')
       } else if (login.rejected.match(res)) {
         console.error('Login rejected', res.error)
         // Error handling is now enhanced by the interceptor, but we can still show specific form errors here if needed

@@ -2,8 +2,9 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
 import { http } from '../../services/api'
 import { setAccessToken } from '../../services/token'
 import type { ApiResponse, Permission } from '../../types/api'
-
 import type { User } from '../../types/models'
+import type { PermissionName, RoleName } from '../../types/permissions'
+
 interface AuthState {
   user: User | null
   accessToken: string | null
@@ -27,7 +28,7 @@ export const register = createAsyncThunk('auth/register', async (payload: { emai
   return data
 })
 
-export const registerStaff = createAsyncThunk('auth/registerStaff', async (payload: { email: string; password: string; firstName: string; lastName: string; role: string }) => {
+export const registerStaff = createAsyncThunk('auth/registerStaff', async (payload: { email: string; password: string; firstName: string; lastName: string; roleName: string }) => {
   const res = await http.post<any>('/auth/register-staff', payload)
   const data = res.data.data || res.data
   return data
@@ -98,3 +99,62 @@ const slice = createSlice({
 
 export const { tokenRefreshed, forceLogout } = slice.actions
 export default slice.reducer
+
+// ============================================================================
+// Selectors
+// ============================================================================
+
+/**
+ * Select the current user
+ */
+export const selectUser = (state: { auth: AuthState }) => state.auth.user
+
+/**
+ * Select the user's role name
+ */
+export const selectUserRole = (state: { auth: AuthState }): RoleName | null => 
+  state.auth.user?.role?.name as RoleName ?? null
+
+/**
+ * Select all user permissions
+ */
+export const selectPermissions = (state: { auth: AuthState }) => state.auth.permissions
+
+/**
+ * Select authentication status
+ */
+export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated
+
+/**
+ * Create a selector factory for checking a specific permission
+ * 
+ * @example
+ * const canCreate = useAppSelector(selectHasPermission('create_patient_records'))
+ */
+export const selectHasPermission = (permission: PermissionName) => 
+  (state: { auth: AuthState }): boolean =>
+    state.auth.permissions.some(p => p.name === permission)
+
+/**
+ * Create a selector factory for checking if user has ANY of the permissions
+ * 
+ * @example
+ * const canView = useAppSelector(selectHasAnyPermission(['view_all_patients', 'view_assigned_patients']))
+ */
+export const selectHasAnyPermission = (permissions: PermissionName[]) =>
+  (state: { auth: AuthState }): boolean =>
+    permissions.some(reqPerm =>
+      state.auth.permissions.some(userPerm => userPerm.name === reqPerm)
+    )
+
+/**
+ * Create a selector factory for checking if user has ALL of the permissions
+ * 
+ * @example
+ * const canManage = useAppSelector(selectHasAllPermissions(['view_lab_orders', 'edit_lab_orders']))
+ */
+export const selectHasAllPermissions = (permissions: PermissionName[]) =>
+  (state: { auth: AuthState }): boolean =>
+    permissions.every(reqPerm =>
+      state.auth.permissions.some(userPerm => userPerm.name === reqPerm)
+    )

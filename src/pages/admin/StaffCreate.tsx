@@ -50,8 +50,11 @@ export default function StaffCreate() {
 
         try {
             await dispatch(registerStaff({
-                ...formData,
-                role: formData.roleName // Backend expects 'role'
+                email: formData.email,
+                password: formData.password,
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                roleName: formData.roleName
             })).unwrap()
             toast.success(`${formData.roleName} account created successfully!`)
             navigate('/admin/users')

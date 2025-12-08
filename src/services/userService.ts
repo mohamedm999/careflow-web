@@ -24,7 +24,21 @@ export interface PaginatedUsers {
 
 export const getAllUsers = async (params: GetUsersParams = {}) => {
   const res = await http.get<ApiResponse<PaginatedUsers>>('/users', { params })
-  return res.data.data!
+  const data = res.data.data!
+  // Transform backend format to frontend format
+  const users = (data.docs || []).map((user: any) => ({
+    ...user,
+    id: user._id || user.id,
+    role: user.role || { name: 'unknown' }
+  }))
+  return {
+    items: users,
+    pagination: {
+      page: data.page || 1,
+      pages: data.totalPages || 1,
+      total: data.totalDocs || 0
+    }
+  }
 }
 
 export const getUserById = async (userId: string) => {

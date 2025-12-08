@@ -39,7 +39,7 @@ import DocumentUpload from './pages/documents/DocumentUpload'
 import DocumentDetail from './pages/documents/DocumentDetail'
 import StaffCreate from './pages/admin/StaffCreate'
 import UserList from './pages/admin/UserList'
-import Settings from './pages/admin/Settings'
+// import Settings from './pages/admin/Settings' // Hidden - backend not implemented yet
 import PermissionsDebug from './pages/PermissionsDebug'
 import ProtectedRoute from './routes/ProtectedRoute'
 
@@ -87,7 +87,8 @@ export default function App() {
             <Route path="documents/upload" element={<ProtectedRoute element={<DocumentUpload />} permission="upload_documents" />} />
             <Route path="documents/:id" element={<ProtectedRoute element={<DocumentDetail />} permissions={["view_all_documents", "view_own_documents"]} />} />
             <Route path="admin/users" element={<ProtectedRoute element={<UserList />} permission="view_all_users" />} />
-            <Route path="admin/settings" element={<ProtectedRoute element={<Settings />} permission="access_system_settings" />} />
+            {/* Settings page hidden - backend not implemented yet */}
+            {/* <Route path="admin/settings" element={<ProtectedRoute element={<Settings />} permission="access_system_settings" />} /> */}
             <Route path="admin/staff/create" element={<ProtectedRoute element={<StaffCreate />} permission="create_users" />} />
             <Route path="debug/permissions" element={<ProtectedRoute element={<PermissionsDebug />} />} />
             <Route index element={<Navigate to="/dashboard" replace />} />

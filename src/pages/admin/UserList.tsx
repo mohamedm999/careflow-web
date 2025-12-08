@@ -35,9 +35,10 @@ export default function UserList() {
             setLoading(true)
             setError(null)
             const res = await getAllUsers()
-            setUsers(res.items)
+            setUsers(res?.items ?? [])
         } catch (error: any) {
             console.error(error)
+            setUsers([])
             if (error.response?.status === 404) {
                 setError('User management endpoint not found in backend.')
             } else {
@@ -107,7 +108,7 @@ export default function UserList() {
                                     <TableCell>{user.firstName} {user.lastName}</TableCell>
                                     <TableCell>{user.email}</TableCell>
                                     <TableCell>
-                                        <Chip label={user.role.name} size="small" variant="outlined" />
+                                        <Chip label={user.role?.name || 'N/A'} size="small" variant="outlined" />
                                     </TableCell>
                                     <TableCell>
                                         <Chip

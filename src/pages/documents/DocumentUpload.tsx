@@ -1,30 +1,62 @@
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Stack, Typography, TextField, Button, MenuItem, Paper, Container, Alert, Box } from '@mui/material'
+import { Stack, Typography, TextField, Button, MenuItem, Paper, Container, Alert, Box, FormControl, InputLabel, Select, FormHelperText, CircularProgress } from '@mui/material'
 import { uploadDocument } from '../../services/documentService'
+import { getPatients } from '../../services/patientService'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 
 const schema = z.object({
-  patientId: z.string().min(1, 'Patient ID is required'),
-  documentType: z.enum(['prescription','lab_result','consultation','general','imaging','vaccine']),
+  patient: z.string().min(1, 'Patient is required'),
+  category: z.enum(['imaging', 'lab_report', 'prescription', 'consent_form', 'medical_record', 'discharge_summary', 'operative_report', 'pathology_report', 'radiology_report', 'progress_note', 'other']),
+  title: z.string().min(3, 'Title must be at least 3 characters'),
   description: z.string().optional(),
   file: z.any().refine(files => files?.[0], 'File is required').refine(files => files?.[0]?.size <= MAX_FILE_SIZE, `File must be smaller than 50MB`)
 })
 
 type FormData = z.infer<typeof schema>
 
+const categoryOptions = [
+  { value: 'imaging', label: 'Imaging' },
+  { value: 'lab_report', label: 'Lab Report' },
+  { value: 'prescription', label: 'Prescription' },
+  { value: 'consent_form', label: 'Consent Form' },
+  { value: 'medical_record', label: 'Medical Record' },
+  { value: 'discharge_summary', label: 'Discharge Summary' },
+  { value: 'operative_report', label: 'Operative Report' },
+  { value: 'pathology_report', label: 'Pathology Report' },
+  { value: 'radiology_report', label: 'Radiology Report' },
+  { value: 'progress_note', label: 'Progress Note' },
+  { value: 'other', label: 'Other' }
+]
+
 export default function DocumentUpload() {
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<FormData>({ resolver: zodResolver(schema), defaultValues: { documentType: 'general' } })
+  const { register, handleSubmit, control, formState: { errors }, watch } = useForm<FormData>({ 
+    resolver: zodResolver(schema), 
+    defaultValues: { 
+      patient: '',
+      category: 'other',
+      title: '',
+      description: ''
+    } 
+  })
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const fileValue = watch('file')
   const fileName = fileValue?.[0]?.name
+
+  // Fetch patients for dropdown
+  const { data: patientsData, isLoading: loadingPatients } = useQuery({
+    queryKey: ['patients-select'],
+    queryFn: () => getPatients({ page: 1, limit: 100 })
+  })
+  const patients = patientsData?.items ?? []
 
   const onSubmit = async (form: FormData) => {
     try {
@@ -32,8 +64,9 @@ export default function DocumentUpload() {
       setLoading(true)
       const file = (form.file as FileList)?.[0] as File
       const d = await uploadDocument({
-        patientId: form.patientId,
-        documentType: form.documentType,
+        patient: form.patient,
+        category: form.category,
+        title: form.title,
         description: form.description,
         file
       })
@@ -43,6 +76,17 @@ export default function DocumentUpload() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Helper to get patient display name
+  const getPatientName = (patient: any) => {
+    if (patient.user?.firstName) {
+      return `${patient.user.firstName} ${patient.user.lastName}`
+    }
+    if (patient.firstName) {
+      return `${patient.firstName} ${patient.lastName}`
+    }
+    return 'Unknown Patient'
   }
 
   return (
@@ -55,30 +99,54 @@ export default function DocumentUpload() {
 
           <form onSubmit={handleSubmit(onSubmit)}>
             <Stack gap={3}>
-              <TextField
-                label="Patient ID"
-                {...register('patientId')}
-                error={!!errors.patientId}
-                helperText={errors.patientId?.message}
-                fullWidth
+              <Controller
+                name="patient"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth error={!!errors.patient}>
+                    <InputLabel>Patient</InputLabel>
+                    <Select {...field} label="Patient" disabled={loadingPatients}>
+                      {loadingPatients ? (
+                        <MenuItem disabled><CircularProgress size={20} /> Loading...</MenuItem>
+                      ) : patients.length === 0 ? (
+                        <MenuItem disabled>No patients found</MenuItem>
+                      ) : (
+                        patients.map((p: any) => (
+                          <MenuItem key={p.id} value={p.id}>
+                            {getPatientName(p)}
+                          </MenuItem>
+                        ))
+                      )}
+                    </Select>
+                    {errors.patient && <FormHelperText>{errors.patient.message}</FormHelperText>}
+                  </FormControl>
+                )}
               />
 
               <TextField
-                select
-                label="Document Type"
-                defaultValue="general"
-                {...register('documentType')}
-                error={!!errors.documentType}
-                helperText={errors.documentType?.message}
+                label="Title"
+                {...register('title')}
+                error={!!errors.title}
+                helperText={errors.title?.message}
                 fullWidth
-              >
-                <MenuItem value="prescription">Prescription</MenuItem>
-                <MenuItem value="lab_result">Lab Result</MenuItem>
-                <MenuItem value="consultation">Consultation</MenuItem>
-                <MenuItem value="general">General</MenuItem>
-                <MenuItem value="imaging">Imaging</MenuItem>
-                <MenuItem value="vaccine">Vaccine</MenuItem>
-              </TextField>
+                placeholder="Document title"
+              />
+
+              <Controller
+                name="category"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth error={!!errors.category}>
+                    <InputLabel>Category</InputLabel>
+                    <Select {...field} label="Category">
+                      {categoryOptions.map(opt => (
+                        <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                      ))}
+                    </Select>
+                    {errors.category && <FormHelperText>{errors.category.message}</FormHelperText>}
+                  </FormControl>
+                )}
+              />
 
               <TextField
                 label="Description"
